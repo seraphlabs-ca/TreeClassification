@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 import os
 import shutil
@@ -19,7 +20,7 @@ model_names = sorted(name for name in models.__dict__
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('--data', default=os.path.join(os.dirname(__file__), "..", "data", "images"),
+parser.add_argument('--data', default=os.path.join(os.path.dirname(__file__), "..", "data", "images"),
                     metavar='DIR', help='path to dataset')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
