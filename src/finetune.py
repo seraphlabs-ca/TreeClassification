@@ -6,27 +6,26 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
+# import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
-
-
+from torchvision.datasets.folder import *
 
 model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__"))
+                     if name.islower() and not name.startswith("__"))
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
-                    help='path to dataset')
+parser.add_argument('--data', default=os.path.join(os.dirname(__file__), "..", "data", "images"),
+                    metavar='DIR', help='path to dataset')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: resnet18)')
+                    ' | '.join(model_names) +
+                    ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -54,11 +53,103 @@ parser.add_argument('--finetune', dest='finetune', action='store_true',
 
 best_prec1 = 0
 
+
+def find_classes(dir):
+    classes = []
+    tree_parts = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
+    for tp in tree_parts:
+        tree_species = [d for d in os.listdir(os.path.join(dir, tp)) if os.path.isdir(os.path.join(dir, tp, d))]
+        classes.extend([os.path.join(tp, ts) for ts in tree_species])
+
+    classes.sort()
+    class_to_idx = {classes[i]: i for i in range(len(classes))}
+
+    return classes, class_to_idx
+
+
+def make_dataset(dir, class_to_idx):
+    images = []
+    dir = os.path.expanduser(dir)
+    for tp in sorted(os.listdir(dir)):
+        for ts in os.path.join(dir, tp):
+            d = os.path.join(dir, tp, ts)
+            if not os.path.isdir(d):
+                continue
+
+            for root, _, fnames in sorted(os.walk(d)):
+                for fname in sorted(fnames):
+                    if is_image_file(fname):
+                        path = os.path.join(root, fname)
+                        item = (path, class_to_idx[target])
+                        images.append(item)
+
+    return images
+
+
+class TreeImageFolder(data.Dataset):
+    """A specific data loader where the images are arranged in this way: ::
+
+        root/tree-part/tree-species/xxx.png
+        root/tree-part/tree-species/xxy.png
+        root/tree-part/tree-species/xxz.png
+
+    Args:
+        root (string): Root directory path.
+        transform (callable, optional): A function/transform that  takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.RandomCrop``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+        loader (callable, optional): A function to load an image given its path.
+
+     Attributes:
+        classes (list): List of the class names.
+        class_to_idx (dict): Dict with items (class_name, class_index).
+        imgs (list): List of (image path, class_index) tuples
+    """
+
+    def __init__(self, root, transform=None, target_transform=None,
+                 loader=default_loader):
+        classes, class_to_idx = find_classes(root)
+        imgs = make_dataset(root, class_to_idx)
+        if len(imgs) == 0:
+            raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"
+                               "Supported image extensions are: " + ",".join(IMG_EXTENSIONS)))
+
+        self.root = root
+        self.imgs = imgs
+        self.classes = classes
+        self.class_to_idx = class_to_idx
+        self.transform = transform
+        self.target_transform = target_transform
+        self.loader = loader
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is class_index of the target class.
+        """
+        path, target = self.imgs[index]
+        img = self.loader(path)
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.imgs)
+
+
 class FineTuneModel(nn.Module):
+
     def __init__(self, original_model, arch, num_classes):
         super(FineTuneModel, self).__init__()
 
-        if arch.startswith('alexnet') :
+        if arch.startswith('alexnet'):
             self.features = original_model.features
             self.classifier = nn.Sequential(
                 nn.Dropout(),
@@ -70,7 +161,7 @@ class FineTuneModel(nn.Module):
                 nn.Linear(4096, num_classes),
             )
             self.modelName = 'alexnet'
-        elif arch.startswith('resnet') :
+        elif arch.startswith('resnet'):
             # Everything except the last linear layer
             self.features = nn.Sequential(*list(original_model.children())[:-1])
             self.classifier = nn.Sequential(
@@ -89,21 +180,20 @@ class FineTuneModel(nn.Module):
                 nn.Linear(4096, num_classes),
             )
             self.modelName = 'vgg16'
-        else :
+        else:
             raise("Finetuning not supported on this architecture yet")
 
         # Freeze those weights
         for p in self.features.parameters():
             p.requires_grad = False
 
-
     def forward(self, x):
         f = self.features(x)
-        if self.modelName == 'alexnet' :
+        if self.modelName == 'alexnet':
             f = f.view(f.size(0), 256 * 6 * 6)
         elif self.modelName == 'vgg16':
             f = f.view(f.size(0), -1)
-        elif self.modelName == 'resnet' :
+        elif self.modelName == 'resnet':
             f = f.view(f.size(0), -1)
         y = self.classifier(f)
         return y
@@ -116,7 +206,8 @@ def main():
     traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
     # Get number of classes from train directory
-    num_classes = len([name for name in os.listdir(traindir)])
+    classes, class_to_idx = find_classes(traindir)
+    num_classes = len(classes)
     print("num_classes = '{}'".format(num_classes))
     # create model
     if args.finetune:
@@ -146,24 +237,24 @@ def main():
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
-    cudnn.benchmark = True
+    # cudnn.benchmark = True
 
     # Data loading code
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(traindir, transforms.Compose([
+        datasets.TreeImageFolder(traindir, transforms.Compose([
             transforms.RandomSizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
-        ])),    
+        ])),
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
+        datasets.TreeImageFolder(valdir, transforms.Compose([
             transforms.Scale(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -175,7 +266,7 @@ def main():
     # define loss function (criterion) and pptimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
-    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), # Only finetunable params
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),  # Only finetunable params
                                 args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -249,8 +340,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5))
+                      epoch, i, len(train_loader), batch_time=batch_time,
+                      data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
 def validate(val_loader, model, criterion):
@@ -288,8 +379,8 @@ def validate(val_loader, model, criterion):
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5))
+                      i, len(val_loader), batch_time=batch_time, loss=losses,
+                      top1=top1, top5=top5))
 
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
@@ -305,6 +396,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
