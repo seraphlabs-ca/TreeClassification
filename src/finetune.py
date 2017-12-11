@@ -73,6 +73,7 @@ def make_dataset(dir, class_to_idx):
     dir = os.path.expanduser(dir)
     for tp in sorted(os.listdir(dir)):
         for ts in os.path.join(dir, tp):
+            target = os.path.join(tp, ts)
             d = os.path.join(dir, tp, ts)
             if not os.path.isdir(d):
                 continue
