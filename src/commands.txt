@@ -1,1 +1,1 @@
-./finetune.py --evaluate --finetune
+/opt/local/bin/python2.7 -- ./finetune.py --evaluate --finetune

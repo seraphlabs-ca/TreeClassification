@@ -210,6 +210,8 @@ def main():
     classes, class_to_idx = find_classes(traindir)
     num_classes = len(classes)
     print("num_classes = '{}'".format(num_classes))
+    print("classes = '{}'".format(classes))
+
     # create model
     if args.finetune:
         print("=> using pre-trained model '{}'".format(args.arch))
@@ -221,9 +223,9 @@ def main():
 
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
         model.features = torch.nn.DataParallel(model.features)
-        model.cuda()
+        model
     else:
-        model = torch.nn.DataParallel(model).cuda()
+        model = torch.nn.DataParallel(model)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -265,7 +267,7 @@ def main():
         num_workers=args.workers, pin_memory=True)
 
     # define loss function (criterion) and pptimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    criterion = nn.CrossEntropyLoss()
 
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()),  # Only finetunable params
                                 args.lr,
@@ -311,7 +313,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cuda(async=True)
+        # target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
@@ -356,7 +358,7 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
-        target = target.cuda(async=True)
+        # target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
 
