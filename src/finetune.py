@@ -69,10 +69,18 @@ def find_classes(dir):
 
 
 def make_dataset(dir, class_to_idx):
+    """
+    Go over data stored as <tp>/<ts>/images
+    tp = tree part
+    ts = tree species
+
+    """
     images = []
     dir = os.path.expanduser(dir)
     for tp in sorted(os.listdir(dir)):
-        for ts in os.path.join(dir, tp):
+        if not os.path.isdir(os.path.join(dir, tp)):
+            continue
+        for ts in os.listdir(os.path.join(dir, tp)):
             target = os.path.join(tp, ts)
             d = os.path.join(dir, tp, ts)
             if not os.path.isdir(d):
