@@ -319,6 +319,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
     end = time.time()
     for i, (input, target) in enumerate(train_loader):
+        print "TRAIN epoch = %i batch = %i" % (epoch, i)
         # measure data loading time
         data_time.update(time.time() - end)
 
