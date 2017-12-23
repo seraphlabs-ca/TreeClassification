@@ -230,11 +230,11 @@ def main():
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
-    if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-        model.features = torch.nn.DataParallel(model.features)
-        model
-    else:
-        model = torch.nn.DataParallel(model)
+    # if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+    #     model.features = torch.nn.DataParallel(model.features)
+    #     model.cuda()
+    # else:
+    #     model = torch.nn.DataParallel(model)
 
     # optionally resume from a checkpoint
     if args.resume:
