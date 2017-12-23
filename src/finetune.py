@@ -7,7 +7,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-# import torch.backends.cudnn as cudnn
+import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
@@ -249,7 +249,7 @@ def main():
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
 
-    # cudnn.benchmark = True
+    cudnn.benchmark = True
 
     # Data loading code
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -323,7 +323,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        # target = target.cuda(async=True)
+        target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
@@ -368,7 +368,7 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
-        # target = target.cuda(async=True)
+        target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
 
