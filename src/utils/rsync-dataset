@@ -1,0 +1,8 @@
+#!/usr/bin/env zsh
+
+echo "Synchronizing dataset"
+
+rsync-run \
+  ~/Desktop/AI/Scripts/TreeClassification/data/images/  \
+  -e "ssh -i ~/Desktop/AI/Scripts/SSH/AWSTree1.pem" \
+  ubuntu@$1:~/Research/data/assets/datasets/images

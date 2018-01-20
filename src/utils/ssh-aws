@@ -1,0 +1,3 @@
+#!/usr/bin/env zsh
+
+ssh -i ~/Desktop/AI/Scripts/SSH/AWSTree1.pem ubuntu@$1
