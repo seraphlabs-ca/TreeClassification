@@ -1,8 +1,10 @@
 #!/usr/bin/env zsh
 
+script_path=${0:A:h}
+
 echo "Synchronizing dataset"
 
 rsync-run \
-  ~/Desktop/AI/Scripts/TreeClassification/data/images/  \
+ ${script_path}/../..//data/images/  \
   -e "ssh -i ~/Desktop/AI/Scripts/SSH/AWSTree1.pem" \
   ubuntu@$1:~/Research/data/assets/datasets/images
