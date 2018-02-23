@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+
+import logging
+root_logger_config = {
+    "USE_FILE_LOGGER": True,
+    "STREAM_LOGGING_LEVEL": getattr(logging, "DEBUG"),
+    "FILE_LOGGING_LEVEL": getattr(logging, "DEBUG"),
+}
+import common
+common.config_module("common.root_logger", params=root_logger_config)
+from common.root_logger.root_logger import logger
+
+
 import argparse
 import os
 import shutil
@@ -15,7 +27,6 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 from torchvision.datasets.folder import *
 
-from common.root_logger import logger
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__"))
