@@ -1,15 +1,5 @@
 #!/usr/bin/env python
 
-import logging
-root_logger_config = {
-    "USE_FILE_LOGGER": True,
-    "STREAM_LOGGING_LEVEL": getattr(logging, "DEBUG"),
-    "FILE_LOGGING_LEVEL": getattr(logging, "DEBUG"),
-}
-import common
-common.config_module("common.root_logger", params=root_logger_config)
-from common.root_logger.root_logger import logger
-
 
 import argparse
 import os
@@ -26,6 +16,16 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 from torchvision.datasets.folder import *
+
+
+import time
+import logging
+logger = logging.getLogger('finetune')
+hdlr = logging.FileHandler('run-%s.log' % str(time.time()))
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.setLevel(logging.INFO)
 
 
 model_names = sorted(name for name in models.__dict__
